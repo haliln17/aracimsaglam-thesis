@@ -56,6 +56,13 @@ def load_cars():
         return []
 
 # Helper Functions
+def turkish_lower(text):
+    """Robust lowercase for Turkish characters I/İ"""
+    if not text: return ""
+    # Map specifically problematic characters first
+    text = text.replace('İ', 'i').replace('I', 'ı')
+    return text.lower()
+
 def clean_price(price_str):
     if not price_str: return 0
     # Remove TL, space, dots
@@ -85,7 +92,8 @@ def health_check():
 @app.route('/api/assistant', methods=['POST'])
 def assistant():
     data = request.get_json(silent=True) or {}
-    user_msg = data.get('message', '').lower()
+    # Use turkish_lower for user message
+    user_msg = turkish_lower(data.get('message', ''))
     cars = load_cars()
     
     # --- 1. Robust Intent Parsing ---
@@ -109,7 +117,9 @@ def assistant():
             criteria['brands'].append(b)
 
     # B. Cities (Suffix handling: istanbulda -> istanbul)
-    all_cities = set(c.get('city', '').lower() for c in cars)
+    # B. Cities (Suffix handling: istanbulda -> istanbul)
+    # Norm city names for comparison
+    all_cities = set(turkish_lower(c.get('city', '')) for c in cars)
     for city in all_cities:
         # Regex to match city followed by common Turkish suffixes or boundary
         # Suffixes: da, de, da, 'da, 'de, da'ki... simplify: check if city is prefix of a word
@@ -201,10 +211,10 @@ def assistant():
     # Currently we'll filter strictly if city matches.
     
     for car in cars:
-        c_brand = car.get('brand', '').lower()
-        c_city = car.get('city', '').lower()
-        c_fuel = car.get('fuel', '').lower()
-        c_trans = car.get('transmission', '').lower()
+        c_brand = turkish_lower(car.get('brand', ''))
+        c_city = turkish_lower(car.get('city', ''))
+        c_fuel = turkish_lower(car.get('fuel', ''))
+        c_trans = turkish_lower(car.get('transmission', ''))
         c_year = int(car.get('year', 0))
         c_price = clean_price(car.get('price'))
 
