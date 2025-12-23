@@ -21,7 +21,7 @@ else:
 sys.path.insert(0, os.path.join(base_path, 'website'))
 sys.path.insert(0, os.path.join(base_path, 'agent'))
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 from flask_cors import CORS
 from car_agent import CarAgent
 import json
@@ -88,6 +88,18 @@ def index():
 @app.route('/api/health')
 def health_check():
     return jsonify({"status": "ok"})
+
+@app.route('/ai.html')
+def ai_page():
+    return send_from_directory(os.path.join(base_path, 'frontend'), 'ai.html')
+
+@app.route('/static/<path:path>')
+def serve_static(path):
+    return send_from_directory(os.path.join(base_path, 'frontend', 'static'), path)
+
+@app.route('/config.js')
+def serve_config():
+    return send_from_directory(os.path.join(base_path, 'frontend'), 'config.js')
 
 @app.route('/api/assistant', methods=['POST'])
 def assistant():
