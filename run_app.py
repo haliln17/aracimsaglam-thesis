@@ -81,152 +81,280 @@ def assistant():
     user_msg = data.get('message', '').lower()
     cars = load_cars()
     
-    # 1. Parse Criteria
+    # --- 1. Robust Intent Parsing ---
     criteria = {
-        'budget': None,
+        'budget_max': None,
+        'budget_min': None,
         'brands': [],
-        'city': [],
-        'fuel': [],
+        'cities': [],
+        'fuels': [],
         'year_min': None,
-        'transmission': []
+        'year_max': None,
+        'transmissions': [],
+        'sort': 'default' # default, price_asc, km_asc, best
     }
     
-    # Extract unique values from DB for matching
+    # A. Brands (Exact match from dataset)
     all_brands = set(c.get('brand', '').lower() for c in cars)
-    all_cities = set(c.get('city', '').lower() for c in cars)
-    
-    # Budget (look for large numbers)
-    # Matches: 500000, 1.500.000, 1500000
-    numbers = re.findall(r'\d+(?:[.]\d+)*', user_msg)
-    for num_str in numbers:
-        val = int(num_str.replace('.', ''))
-        if val > 10000: # Assumption: budget is likely > 10k
-            # If multiple, take the largest as budget usually
-            if criteria['budget'] is None or val > criteria['budget']:
-                criteria['budget'] = val
-                
-    # Brands
     for b in all_brands:
-        if b in user_msg:
+        # Check strict word match to avoid partials inside other words
+        if re.search(r'\b' + re.escape(b) + r'\b', user_msg):
             criteria['brands'].append(b)
-            
-    # Cities
-    for c in all_cities:
-        if c in user_msg:
-            criteria['city'].append(c)
-            
-    # Fuel
-    fuel_types = ['benzin', 'dizel', 'hibrit', 'elektrik', 'lpg']
-    for f in fuel_types:
-        if f in user_msg:
-            criteria['fuel'].append(f)
-            
-    # Transmission
-    trans_types = ['otomatik', 'manuel', 'yarı otomatik']
-    for t in trans_types:
-        if t in user_msg:
-            criteria['transmission'].append(t)
-            
-    # Year (e.g., "2020 model", "2020 üzeri", "2020+")
-    year_match = re.search(r'(20\d{2})', user_msg)
-    if year_match:
-        y = int(year_match.group(1))
-        # If budget was confused with year, fix it (unlikely given >10k check above for budget, but possible if small budget)
-        criteria['year_min'] = y
 
-    # 2. Score Cars
-    scored_cars = []
+    # B. Cities (Suffix handling: istanbulda -> istanbul)
+    all_cities = set(c.get('city', '').lower() for c in cars)
+    for city in all_cities:
+        # Regex to match city followed by common Turkish suffixes or boundary
+        # Suffixes: da, de, da, 'da, 'de, da'ki... simplify: check if city is prefix of a word
+        # "istanbulda" -> startswith "istanbul"
+        # We scan words in user_msg
+        for word in user_msg.split():
+            # Remove punctuation for check
+            clean_word = re.sub(r'[^\w\s]', '', word) 
+            if clean_word.startswith(city):
+                 # Verification: is the rest a suffix?
+                 suffix = clean_word[len(city):]
+                 if suffix in ['', 'da', 'de', 'ta', 'te', 'dan', 'den', 'tan', 'ten', 'daki', 'deki']:
+                     criteria['cities'].append(city)
+                     break
+    
+    # C. Fuel
+    fuel_map = {
+        'benzin': ['benzin'],
+        'dizel': ['dizel'],
+        'motorin': ['dizel'], # alias
+        'hibrit': ['hybrid', 'hibrit'],
+        'elektrik': ['elektrik'],
+        'lpg': ['lpg']
+    }
+    for key, values in fuel_map.items():
+        if key in user_msg:
+            criteria['fuels'].extend(values)
+
+    # D. Transmission
+    if 'otomatik' in user_msg:
+        criteria['transmissions'].extend(['otomatik', 'yarı otomatik', 'dct', 'cvt', 'pdk', 'dsg', 'triptonik'])
+    if 'manuel' in user_msg:
+        criteria['transmissions'].append('manuel')
+
+    # E. Year
+    # "2018 ve üstü", "2018 üzeri"
+    year_min_match = re.search(r'(\d{4})\s*(ve\s*)?(üstü|üzeri|sonrası)', user_msg)
+    if year_min_match:
+        criteria['year_min'] = int(year_min_match.group(1))
+    
+    # Range: "2015-2020", "2015 ile 2020"
+    year_range_match = re.search(r'(\d{4})\s*[-ile]\s*(\d{4})', user_msg)
+    if year_range_match:
+        y1, y2 = int(year_range_match.group(1)), int(year_range_match.group(2))
+        criteria['year_min'] = min(y1, y2)
+        criteria['year_max'] = max(y1, y2)
+        
+    # F. Budget
+    # Normalizers
+    def parse_money_token(token):
+        token = token.replace(',', '.')
+        mult = 1
+        if 'm' in token or 'milyon' in token: mult = 1000000
+        elif 'k' in token or 'bin' in token: mult = 1000
+        # clean nums
+        nums = re.findall(r'\d+(?:[.]\d+)?', token)
+        if not nums: return None
+        val = float(nums[0])
+        # specialized logic: if val < 1000 and mult==1 => probably implied 'bin' if user says "500-600 arası" ? 
+        # But risky. Let's stick to explicit.
+        # However, "500k" -> 500 * 1000
+        return int(val * mult)
+
+    # Max budget: "2m altı", "500.000 tl altı"
+    max_budget_match = re.search(r'(\d+(?:[.,]\d+)?\s*(?:m|k|bin|milyon|tl)?)\s*(?:altı|altında)', user_msg)
+    if max_budget_match:
+        val = parse_money_token(max_budget_match.group(1))
+        if val and val > 1000: criteria['budget_max'] = val
+
+    # Range budget: "500 - 1000 arası", "500k - 1m"
+    # This is hard with regex alone, simple heuristic: find two money amounts
+    money_tokens = re.findall(r'\d+(?:[.,]\d+)?\s*(?:m|k|bin|milyon|tl)?', user_msg)
+    if len(money_tokens) >= 2 and ('arası' in user_msg or '-' in user_msg):
+        v1 = parse_money_token(money_tokens[0])
+        v2 = parse_money_token(money_tokens[1])
+        if v1 and v2 and v1 > 1000 and v2 > 1000:
+            criteria['budget_min'] = min(v1, v2)
+            criteria['budget_max'] = max(v1, v2)
+
+    # Sorting intent
+    if 'en ucuz' in user_msg or 'fiyatı düşük' in user_msg: criteria['sort'] = 'price_asc'
+    elif 'en az km' in user_msg or 'kilometresi düşük' in user_msg: criteria['sort'] = 'km_asc'
+    elif 'en iyi' in user_msg or 'öner' in user_msg: criteria['sort'] = 'best'
+
+    # --- 2. Filtering Logic ---
+    filtered_cars = []
+    
+    # If explicit city requested but none found, we might want to inform user.
+    # Currently we'll filter strictly if city matches.
+    
     for car in cars:
-        score = 0
-        c_price = clean_price(car.get('price'))
         c_brand = car.get('brand', '').lower()
         c_city = car.get('city', '').lower()
         c_fuel = car.get('fuel', '').lower()
         c_trans = car.get('transmission', '').lower()
         c_year = int(car.get('year', 0))
+        c_price = clean_price(car.get('price'))
+
+        # Strict Checks
+        if criteria['brands'] and not any(b == c_brand for b in criteria['brands']): continue
+        if criteria['cities'] and not any(c == c_city for c in criteria['cities']): continue
+        if criteria['fuels'] and not any(f in c_fuel for f in criteria['fuels']): continue
+        if criteria['transmissions'] and not any(t in c_trans for t in criteria['transmissions']): continue
         
-        # Budget
-        if criteria['budget']:
-            if c_price <= criteria['budget']:
-                score += 4
-            else:
-                score -= 2 # Penalize over budget
-                
-        # Brand
-        if any(b in c_brand for b in criteria['brands']):
-            score += 3
-            
-        # City
-        if any(city in c_city for city in criteria['city']):
-            score += 2
-            
-        # Fuel
-        if any(f in c_fuel for f in criteria['fuel']):
-            score += 2
-            
-        # Transmission
-        if any(t in c_trans for t in criteria['transmission']):
-            score += 2
-            
-        # Year
-        if criteria['year_min']:
-            if c_year >= criteria['year_min']:
-                score += 2
+        if criteria['year_min'] and c_year < criteria['year_min']: continue
+        if criteria['year_max'] and c_year > criteria['year_max']: continue
         
-        if score > 0:
-            scored_cars.append({'score': score, 'data': car, 'price_val': c_price})
+        if criteria['budget_max'] and c_price > criteria['budget_max']: continue
+        if criteria['budget_min'] and c_price < criteria['budget_min']: continue
 
-    # 3. Sort (Score DESC, Price ASC)
-    scored_cars.sort(key=lambda x: (-x['score'], x['price_val']))
-    top_results = [x['data'] for x in scored_cars[:6]]
+        filtered_cars.append(car)
+
+    # Fallback if city filter was too strict and returned 0 results
+    # Only do this if we had a city filter
+    hit_city_fallback = False
+    if not filtered_cars and criteria['cities']:
+        # Reset matching cars loop but ignore city
+        hit_city_fallback = True
+        for car in cars:
+            # Copy-paste checks minus city
+            c_brand = car.get('brand', '').lower()
+            c_fuel = car.get('fuel', '').lower()
+            c_trans = car.get('transmission', '').lower()
+            c_year = int(car.get('year', 0))
+            c_price = clean_price(car.get('price'))
+
+            if criteria['brands'] and not any(b == c_brand for b in criteria['brands']): continue
+            if criteria['fuels'] and not any(f in c_fuel for f in criteria['fuels']): continue
+            if criteria['transmissions'] and not any(t in c_trans for t in criteria['transmissions']): continue
+            if criteria['year_min'] and c_year < criteria['year_min']: continue
+            if criteria['year_max'] and c_year > criteria['year_max']: continue
+            if criteria['budget_max'] and c_price > criteria['budget_max']: continue
+            if criteria['budget_min'] and c_price < criteria['budget_min']: continue
+            
+            filtered_cars.append(car)
+
+    # --- 3. Sorting/Ranking ---
+    def get_sort_key(car):
+        p = clean_price(car.get('price'))
+        k = clean_km(car.get('km'))
+        y = int(car.get('year', 0))
+        
+        if criteria['sort'] == 'price_asc': return (p, k)
+        if criteria['sort'] == 'km_asc': return (k, p)
+        if criteria['sort'] == 'best': 
+            # Weighted score: low price, low km, high year
+            # Max price approx 10m, Max km 200k. Normalize roughly.
+            # Score = (Year * 5000) - (Price / 1000) - (KM / 10)
+            # This is heuristic.
+            return -((y * 5000) - (p / 200) - (k / 10))
+            
+        # Default: just budget compliance (already filtered) then price
+        return (p, k)
+
+    filtered_cars.sort(key=get_sort_key)
     
-    # 4. Generate Reply
-    reply_lines = []
+    # Top results
+    matches = filtered_cars[:6]
     
-    # Summary
-    constraints = []
-    if criteria['brands']: constraints.append(f"Marka: {', '.join(criteria['brands']).title()}")
-    if criteria['budget']: constraints.append(f"Bütçe: {criteria['budget']:,} TL")
-    if criteria['city']: constraints.append(f"Şehir: {', '.join(criteria['city']).title()}")
+    # --- 4. Reply Generation ---
+    reply_parts = []
     
-    if not constraints and not criteria['fuel'] and not criteria['year_min']:
-         reply_lines.append("Herhangi bir kriter belirtmediniz, işte vitrindeki araçlarımız:")
-    else:
-        summary = ", ".join(constraints)
-        reply_lines.append(f"Aradığınız kriterlere ({summary}) en uygun araçları listeledim:")
-
-    if not top_results:
-        return jsonify({
-            'reply': "Belirttiğiniz kriterlere uygun araç bulamadım. Lütfen bütçeyi artırmayı veya kriterleri değiştirmeyi deneyin.",
-            'results': []
-        })
-
-    reply_lines.append("") # Spacer
-    for car in top_results:
-        p = car.get('price')
-        c = car.get('city')
-        y = car.get('year')
-        reply_lines.append(f"• {car.get('title')} — {p} — {c} — {y}")
-
+    if hit_city_fallback:
+        reply_parts.append(f"⚠️ {', '.join(criteria['cities']).title()} içinde araç bulamadım, ancak diğer illerdeki benzer araçları getirdim.")
+    
+    if not matches:
+        reply_parts.append("😔 Maalesef belirttiğiniz kriterlere uygun araç bulamadım.")
+        reply_parts.append("Kriterlerinizi (bütçe, yıl vb.) biraz esnetmeyi deneyebilirsiniz.")
+        return jsonify({'reply': "\n".join(reply_parts), 'matches': []})
+    
+    count = len(filtered_cars)
+    shown = len(matches)
+    
+    summary_adjs = []
+    if criteria['brands']: summary_adjs.append(f"{','.join(criteria['brands']).upper()}")
+    if criteria['year_min']: summary_adjs.append(f"{criteria['year_min']}+ model")
+    if criteria['budget_max']: summary_adjs.append(f"{criteria['budget_max']/1000:.0f}k TL altı")
+    
+    desc = " ".join(summary_adjs)
+    if not desc: desc = "uygun"
+    
+    reply_parts.append(f"🔍 Aradığınız kriterlere {desc} toplam {count} araç buldum.")
+    reply_parts.append(f"İşte en iyi {shown} tanesi:")
+    
+    bullet_list = []
+    for m in matches:
+        bullet_list.append(f"• {m.get('title')} ({m.get('price')})")
+        
+    reply_parts.append("\n".join(bullet_list))
+    
     return jsonify({
-        'reply': "\n".join(reply_lines),
-        'results': top_results
+        'reply': "\n\n".join(reply_parts),
+        'matches': matches
     })
-
-@app.route('/api/search', methods=['POST'])
-def search():
-    data = request.get_json(silent=True) or {}
-    query = data.get('query', '')
-    if not query:
-        return jsonify({'response': 'Lütfen bir arama terimi girin.'})
-        
-    response = agent.search_cars(query)
-    return jsonify({'response': response})
 
 @app.route('/api/analyze/<car_id>')
 def analyze(car_id):
-    response = agent.analyze_car(car_id)
-    return jsonify({'analysis': response})
+    cars = load_cars()
+    car = next((c for c in cars if c['id'] == car_id), None)
+    if not car:
+        return jsonify({'analysis': "Araç bulunamadı."})
+        
+    # Heuristics for analysis
+    price = clean_price(car.get('price'))
+    km = clean_km(car.get('km'))
+    year = int(car.get('year', 0))
+    fuel = car.get('fuel')
+    
+    # Averages (approx from typical DB)
+    avg_price = sum(clean_price(c.get('price')) for c in cars) / len(cars) if cars else 0
+    avg_km = sum(clean_km(c.get('km')) for c in cars) / len(cars) if cars else 0
+    
+    pros = []
+    cons = []
+    
+    if year >= 2022: pros.append("Model yılı çok yeni, güncel kasa.")
+    if km < 30000: pros.append("Düşük kilometre, motor kondisyonu muhtemelen çok iyi.")
+    if 'Hybrid' in fuel or 'Elektrik' in fuel: pros.append("Yakıt tüketimi ekonomik ve çevreci.")
+    if 'Otomatik' in car.get('transmission') or 'DCT' in car.get('transmission'): pros.append("Konforlu otomatik vites.")
+    
+    if price > avg_price * 1.5: cons.append("Fiyatı piyasa ortalamasının üzerinde.")
+    if year < 2018: cons.append("Model yılı biraz eski, donanımları kontrol edin.")
+    if km > 150000: cons.append("Kilometresi yüksek, ağır bakım geçmişini sorgulayın.")
+    
+    market_comment = "Fiyat/performans dengeli görünüyor."
+    if price < avg_price * 0.8: market_comment = "Bu araç piyasaya göre FIRSAT niteliğinde olabilir, fiyatı uygun."
+    elif price > avg_price * 1.2: market_comment = "Premium segment veya yüksek donanımlı bir araç olduğu için fiyatı ortalamadan yüksek."
+    
+    personas = []
+    if 'Suv' in car.get('model') or 'Jeep' in car.get('brand') or 'Tucson' in car.get('title'): personas.append("Geniş aileler")
+    if price < 1000000: personas.append("İlk aracını alacaklar")
+    if 'Sport' in car.get('title'): personas.append("Performans severler")
+    
+    analysis_text = f"""
+## 📊 {car.get('title')} Analiz Raporu
+
+**Özet**
+{car.get('year')} model, {car.get('city')} konumunda bulunan bu araç {car.get('km')} km'de. {car.get('fuel')} yakıt tipi ve {car.get('transmission')} vites seçeneği sunuyor.
+
+**✅ Artılar**
+{chr(10).join(['- '+p for p in pros] if pros else ['- Genel durumu iyi görünüyor.'])}
+
+**⚠️ Dikkat Edilmesi Gerekenler**
+{chr(10).join(['- '+c for c in cons] if cons else ['- Belirgin bir eksi özellik görülmedi.'])}
+
+**💰 Piyasa Yorumu**
+{market_comment}
+
+**👥 Kimler İçin Uygun?**
+{', '.join(personas) if personas else 'Her tür kullanıcı grubu için değerlendirilebilir.'}
+"""
+    return jsonify({'analysis': analysis_text.strip()})
 
 @app.route('/api/cars')
 def get_cars():
