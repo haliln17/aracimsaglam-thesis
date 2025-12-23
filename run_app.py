@@ -260,14 +260,36 @@ def assistant():
                 system_prompt = "Sen Türkçe konuşan yardımsever bir otomobil asistanısın. Kullanıcıya kriterlerine uygun araç bulunamadığını nazikçe söyle ve kriterlerini (şehir, bütçe vb) değiştirmesini öner."
                 user_content = f"Kullanıcı mesajı: '{user_msg}'. Hiç araç bulunamadı."
             else:
-                system_prompt = "Sen Türkçe konuşan yardımsever bir otomobil asistanısın. SANA VERİLEN ARAÇ LİSTESİ DIŞINDA ARAÇ UYDURMA. Sadece listedeki araçları kullanarak kısa, samimi ve satış odaklı bir özet cevap yaz. Neden bu araçların uygun olduğunu maddeleyerek anlat."
+                system_prompt = """Sen Türkiye ikinci el araç piyasasında uzmanlaşmış, profesyonel bir otomobil danışmanısın.
+Görev: Kullanıcıyı sadece listemek değil, DOĞRU satın alma kararına yönlendirmek.
+Dinamikleri anlıyorsun: Fiyat/performans, segment beklentileri, yakıt/vites tercihleri, aile/genç kullanımı.
+
+KURALLAR:
+1. Sana filtrelenmiş bir araç listesi verilecek. ASLA bu liste dışında araç uydurma.
+2. Her aracın NEDEN uygun olduğunu veya olmadığını gerekçeleriyle açıkla.
+3. Eksi yönleri nazikçe ve şeffafça belirt.
+4. "En ucuz", "en az yakan" gibi fırsatları vurgula.
+5. Dil: Türkçe. Ton: Profesyonel, güven verici, satış odaklı ama asla agresif değil. Gerçek bir danışman gibi konuş."""
+                
                 # Compact car list
                 car_context = []
                 for m in matches:
                     car_context.append(f"- {m['title']} ({m['year']}), {m['price']}, {m['km']} km, {m['city']}, {m['fuel']}, {m['transmission']}")
                 
                 car_list_str = "\n".join(car_context)
-                user_content = f"Kullanıcı mesajı: '{user_msg}'.\n\nBulunan Araçlar:\n{car_list_str}\n\nLütfen bu araçları kullanıcıya sunan yardımsever bir cevap yaz."
+                user_content = f"""Kullanıcı Mesajı: '{user_msg}'
+
+Bulunan Araçlar (Sadece bunlardan seç):
+{car_list_str}
+
+Lütfen şu formatta yanıt ver:
+1. İsteği Özetle: (Kullanıcı ne arıyor? Bütçe, şehir vb.)
+2. En İyi 3-5 Seçenek:
+   - [Araç Adı]: Kimin için uygun? Güçlü yönü ne? (Fiyat, Yakıt, Konfor vb.)
+3. Karşılaştırma: (Varsa benzer araçları kıyasla)
+4. Şehir ve Uygunluk: (Şehir dışı ise belirt)
+5. Tavsiye: Güven verici bir kapanış cümlesi.
+"""
 
             completion = client.chat.completions.create(
                 model="gpt-4o", # or gpt-3.5-turbo
@@ -337,14 +359,29 @@ def analyze(car_id):
             Yakıt: {car.get('fuel')}
             Vites: {car.get('transmission')}
 
-            Lütfen şu formatta yanıt ver (Markdown):
-            ## 📊 {car.get('title')} Analiz Raporu
-            **Artılar** (5 madde)
-            **Eksiler** (5 madde)
-            **Bu araç kime uygun?**
-            **Fiyat/Kilometre Değerlendirmesi** (Sadece verilen veriye göre mantıklı bir yorum yap, uydurma)
-            
-            Türkçe, samimi ve profesyonel ol.
+            Lütfen şu yapıda, Markdown formatında bir rapor yaz:
+
+            ## 📊 {car.get('title')} Uzman Analizi
+
+            **✅ Artılar**
+            - (Araçla ilgili 3-5 olumlu özellik)
+
+            **⚠️ Dikkat Edilmesi Gerekenler**
+            - (Kilometre, yıl veya fiyat kaynaklı olası riskler/eksiler)
+
+            **💰 Piyasa Değerlendirmesi**
+            - (Bu fiyat bu araç için uygun mu? Fırsat mı? Pahalı mı? Neden?)
+
+            **👥 Kimler Almalı?**
+            - (Örn: Geniş aileler, ilk arabası olacaklar, şehir içi kullananlar...)
+
+            **🚫 Kimler Uzak Durmalı?**
+            - (Örn: Performans arayanlar, yakıtı dert edenler...)
+
+            **🏁 Son Karar**
+            - (Alınır mı? Mantıklı bir tercih mi?)
+
+            Ton: Samimi, gerçekçi, güven verici. "Robot" gibi değil, bir "uzman abi" gibi konuş.
             """
             
             completion = client.chat.completions.create(
