@@ -1,5 +1,5 @@
 // Configuration for the frontend
-window.API_BASE_URL = 'http://localhost:5000'; // Default local development
+window.API_BASE_URL = ''; // Relative path usage for proxy
 // For Netlify, you can override this or manualy change it before deploy
 // Or better, use a relative path if you proxy /api calls.
 // However, since we are doing cors, we might need the full URL if hosted elsewhere.
