@@ -1,0 +1,112 @@
+[
+  {
+    "id": "1",
+    "title": "2020 Volkswagen Golf 1.6 TDI Comfortline",
+    "url": "https://www.sahibinden.com/otomobil/volkswagen/golf",
+    "price": "850.000 TL",
+    "year": "2020",
+    "km": "45.000 km",
+    "location": "İstanbul / Kadıköy",
+    "date": "2024-12-04T00:00:00",
+    "image": "https://placehold.co/300x200?text=VW+Golf"
+  },
+  {
+    "id": "2",
+    "title": "2019 Renault Clio 1.5 dCi Touch",
+    "url": "https://www.sahibinden.com/otomobil/renault/clio",
+    "price": "520.000 TL",
+    "year": "2019",
+    "km": "62.000 km",
+    "location": "Ankara / Çankaya",
+    "date": "2024-12-04T00:00:00",
+    "image": "https://placehold.co/300x200?text=Renault+Clio"
+  },
+  {
+    "id": "3",
+    "title": "2021 Toyota Corolla 1.6 Dream",
+    "url": "https://www.sahibinden.com/otomobil/toyota/corolla",
+    "price": "1.150.000 TL",
+    "year": "2021",
+    "km": "28.000 km",
+    "location": "İzmir / Bornova",
+    "date": "2024-12-04T00:00:00",
+    "image": "https://placehold.co/300x200?text=Toyota+Corolla"
+  },
+  {
+    "id": "4",
+    "title": "2018 Fiat Egea 1.3 Multijet Easy",
+    "url": "https://www.sahibinden.com/otomobil/fiat/egea",
+    "price": "480.000 TL",
+    "year": "2018",
+    "km": "78.000 km",
+    "location": "Bursa / Nilüfer",
+    "date": "2024-12-04T00:00:00",
+    "image": "https://placehold.co/300x200?text=Fiat+Egea"
+  },
+  {
+    "id": "5",
+    "title": "2022 Hyundai i20 1.4 MPI Elite",
+    "url": "https://www.sahibinden.com/otomobil/hyundai/i20",
+    "price": "720.000 TL",
+    "year": "2022",
+    "km": "15.000 km",
+    "location": "Antalya / Muratpaşa",
+    "date": "2024-12-04T00:00:00",
+    "image": "https://placehold.co/300x200?text=Hyundai+i20"
+  },
+  {
+    "id": "6",
+    "title": "2020 Ford Focus 1.5 TDCi Trend X",
+    "url": "https://www.sahibinden.com/otomobil/ford/focus",
+    "price": "680.000 TL",
+    "year": "2020",
+    "km": "55.000 km",
+    "location": "İstanbul / Beşiktaş",
+    "date": "2024-12-04T00:00:00",
+    "image": "https://placehold.co/300x200?text=Ford+Focus"
+  },
+  {
+    "id": "7",
+    "title": "2019 Peugeot 301 1.6 HDi Active",
+    "url": "https://www.sahibinden.com/otomobil/peugeot/301",
+    "price": "450.000 TL",
+    "year": "2019",
+    "km": "68.000 km",
+    "location": "Adana / Seyhan",
+    "date": "2024-12-04T00:00:00",
+    "image": "https://placehold.co/300x200?text=Peugeot+301"
+  },
+  {
+    "id": "8",
+    "title": "2021 Honda Civic 1.6 i-VTEC Eco Elegance",
+    "url": "https://www.sahibinden.com/otomobil/honda/civic",
+    "price": "950.000 TL",
+    "year": "2021",
+    "km": "32.000 km",
+    "location": "İzmir / Karşıyaka",
+    "date": "2024-12-04T00:00:00",
+    "image": "https://placehold.co/300x200?text=Honda+Civic"
+  },
+  {
+    "id": "9",
+    "title": "2018 Opel Astra 1.6 CDTI Design",
+    "url": "https://www.sahibinden.com/otomobil/opel/astra",
+    "price": "520.000 TL",
+    "year": "2018",
+    "km": "72.000 km",
+    "location": "Kocaeli / İzmit",
+    "date": "2024-12-04T00:00:00",
+    "image": "https://placehold.co/300x200?text=Opel+Astra"
+  },
+  {
+    "id": "10",
+    "title": "2022 Skoda Scala 1.0 TSI Style",
+    "url": "https://www.sahibinden.com/otomobil/skoda/scala",
+    "price": "780.000 TL",
+    "year": "2022",
+    "km": "18.000 km",
+    "location": "Ankara / Keçiören",
+    "date": "2024-12-04T00:00:00",
+    "image": "https://placehold.co/300x200?text=Skoda+Scala"
+  }
+]

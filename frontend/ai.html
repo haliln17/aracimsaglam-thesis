@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Asistan - AI Araba Galerisi</title>
+    <link rel="stylesheet" href="static/style.css">
+    <script src="config.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <div class="logo">
+                <h1>🚗 AracımSağlam</h1>
+                <p class="tagline">Geleceğin Araç Platformu</p>
+            </div>
+            <nav>
+                <a href="index.html">Ana Sayfa</a>
+                <a href="cars.html">Araçlar</a>
+                <a href="ai.html" class="active">AI Asistan</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container" style="padding-top: 40px;">
+        <div class="search-section glass">
+            <h2>✨ AI Asistan</h2>
+            <p class="section-desc">Ne aradığınızı söyleyin, yapay zekamız sizin için en doğru seçenekleri listelesin.</p>
+            <div class="chat-box">
+                <div id="chat-messages">
+                    <div class="message bot">🤖 Merhaba! Size nasıl yardımcı olabilirim? Örneğin: "500.000 TL altı otomatik vites araçları göster" diyebilirsiniz.</div>
+                </div>
+            </div>
+            <div class="input-group">
+                <input type="text" id="query-input" placeholder="Yapay zekaya sorun...">
+                <button onclick="searchCars()">Analiz Et</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function searchCars() {
+            const queryInput = document.getElementById('query-input');
+            const query = queryInput.value;
+            if (!query) return;
+
+            const messagesDiv = document.getElementById('chat-messages');
+            messagesDiv.innerHTML += `<div class="message user">👤 ${query}</div>`;
+            messagesDiv.innerHTML += `<div class="message bot loading">🤖 Veriler analiz ediliyor, lütfen bekleyin...</div>`;
+            
+            // Auto scroll
+            const chatBox = document.querySelector('.chat-box');
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try {
+                const response = await fetch(`${window.API_BASE_URL}/api/search`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({query})
+                });
+                const data = await response.json();
+                
+                // Remove loading message
+                const loadingMsg = messagesDiv.querySelector('.loading');
+                if (loadingMsg) loadingMsg.remove();
+                
+                messagesDiv.innerHTML += `<div class="message bot">🤖 ${data.response}</div>`;
+                
+                chatBox.scrollTop = chatBox.scrollHeight;
+            } catch (error) {
+                console.error('Hata:', error);
+                const loadingMsg = messagesDiv.querySelector('.loading');
+                if (loadingMsg) loadingMsg.remove();
+                messagesDiv.innerHTML += `<div class="message bot">🤖 Üzgünüm, bir bağlantı hatası oluştu. Lütfen tekrar deneyin.</div>`;
+            }
+
+            queryInput.value = '';
+        }
+
+        document.getElementById('query-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') searchCars();
+        });
+    </script>
+</body>
+</html>

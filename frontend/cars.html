@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Araçlar - AI Araba Galerisi</title>
+    <link rel="stylesheet" href="static/style.css">
+    <script src="config.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <div class="logo">
+                <h1>🚗 AracımSağlam</h1>
+                <p class="tagline">Geleceğin Araç Platformu</p>
+            </div>
+            <nav>
+                <a href="index.html">Ana Sayfa</a>
+                <a href="cars.html" class="active">Araçlar</a>
+                <a href="ai.html">AI Asistan</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container" style="padding-top: 40px;">
+        <div class="cars-section" id="vehicles">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>Vitrin</h2>
+                <div style="color: var(--text-muted);" id="loading-indicator">Yükleniyor...</div>
+            </div>
+            <p class="section-desc" style="text-align: left; margin-bottom: 20px;">Tüm güncel ilanlarımız</p>
+            
+            <div class="cars-grid" id="cars-grid">
+                <!-- Cars will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchCars() {
+            try {
+                const response = await fetch(`${window.API_BASE_URL}/api/cars`);
+                if (!response.ok) throw new Error('API Error');
+                const cars = await response.json();
+                
+                const grid = document.getElementById('cars-grid');
+                grid.innerHTML = ''; // Clear loading
+                document.getElementById('loading-indicator').style.display = 'none';
+
+                cars.forEach(car => {
+                    const card = document.createElement('div');
+                    card.className = 'car-card';
+                    
+                    const imgUrl = car.image || 'https://placehold.co/600x400/1e293b/FFF?text=Araba';
+                    
+                    card.innerHTML = `
+                        <img src="${imgUrl}" alt="${car.title}" onerror="this.src='https://placehold.co/600x400/1e293b/FFF?text=Araba'">
+                        <div class="car-info">
+                            <h3>${car.title}</h3>
+                            <p class="price">${car.price}</p>
+                            <div class="details">
+                                <span>📅 ${car.year}</span>
+                                <span>⚡ ${car.km}</span>
+                            </div>
+                            <p class="location">📍 ${car.location}</p>
+                            <div class="actions">
+                                <button onclick="analyzeCar('${car.id}')">AI Analiz</button>
+                                <a href="${car.url}" target="_blank">İncele</a>
+                            </div>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+            } catch (error) {
+                console.error('Error fetching cars:', error);
+                document.getElementById('loading-indicator').innerText = 'Veriler yüklenirken hata oluştu.';
+            }
+        }
+
+        async function analyzeCar(carId) {
+            const btn = event.target;
+            const originalText = btn.innerText;
+            btn.innerText = 'Analiz...';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch(`${window.API_BASE_URL}/api/analyze/${carId}`);
+                const data = await response.json();
+                alert('AI Analiz Raporu:\n\n' + data.analysis);
+            } catch (e) {
+                alert('Analiz sırasında bir hata oluştu: ' + e);
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        // Initialize
+        fetchCars();
+    </script>
+</body>
+</html>

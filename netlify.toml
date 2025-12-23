@@ -1,0 +1,17 @@
+[build]
+  publish = "frontend"
+
+[[redirects]]
+  # This serves the SPA (if any routing was client side, which is not really here yet but good practice)
+  # But since we have specific html files, we might not need catch-all.
+  # However, to prevent 404s if we did client routing:
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Optional: Proxy /api to your backend if you have a live backend URL
+# [[redirects]]
+#   from = "/api/*"
+#   to = "https://your-backend-url.com/api/:splat"
+#   status = 200
+#   force = true

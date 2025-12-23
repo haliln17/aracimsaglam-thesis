@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Araba Galerisi</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <div class="logo">
+                <h1>🚗 AracımSağlam</h1>
+                <p class="tagline">Geleceğin Araç Platformu</p>
+            </div>
+            <nav>
+                <a href="#vehicles">Araçlar</a>
+                <a href="#ai-assistant">AI Asistan</a>
+                <a href="#about">Hakkımızda</a>
+                <a href="#contact">İletişim</a>
+            </nav>
+        </div>
+    </header>
+
+    <section class="hero">
+        <div class="hero-content">
+            <h2>Akıllı Seçim, <br>Mükemmel Sürüş</h2>
+            <p>AracımSağlam'ın yapay zeka destekli altyapısı ile hayalinizdeki aracı saniyeler içinde analiz edin ve bulun.</p>
+            <div class="hero-stats">
+                <div class="stat">
+                    <span class="stat-number">{{ cars|length }}+</span>
+                    <span class="stat-label">Doğrulanmış İlan</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">AI</span>
+                    <span class="stat-label">Akıllı Eşleşme</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">%99</span>
+                    <span class="stat-label">Müşteri Memnuniyeti</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="container">
+        <div class="search-section glass" id="ai-assistant">
+            <h2>✨ AI Asistan</h2>
+            <p class="section-desc">Ne aradığınızı söyleyin, yapay zekamız sizin için en doğru seçenekleri listelesin.</p>
+            <div class="chat-box">
+                <div id="chat-messages">
+                    <div class="message bot">🤖 Merhaba! Size nasıl yardımcı olabilirim? Örneğin: "500.000 TL altı otomatik vites araçları göster" diyebilirsiniz.</div>
+                </div>
+            </div>
+            <div class="input-group">
+                <input type="text" id="query-input" placeholder="Yapay zekaya sorun...">
+                <button onclick="searchCars()">Analiz Et</button>
+            </div>
+        </div>
+
+        <div class="cars-section" id="vehicles">
+            <h2>Vitrin ({{ cars|length }} Araç)</h2>
+            <p class="section-desc" style="text-align: left; margin-bottom: 20px;">AI tarafından seçilen premium ilanlar</p>
+            <div class="cars-grid">
+                {% for car in cars %}
+                <div class="car-card">
+                    {% if car.image %}
+                    <img src="{{ car.image }}" alt="{{ car.title }}" onerror="this.src='https://placehold.co/600x400/1e293b/FFF?text=Araba'">
+                    {% else %}
+                    <img src="https://placehold.co/600x400/1e293b/FFF?text=Araba" alt="Araba">
+                    {% endif %}
+                    <div class="car-info">
+                        <h3>{{ car.title }}</h3>
+                        <p class="price">{{ car.price }}</p>
+                        <div class="details">
+                            <span>📅 {{ car.year }}</span>
+                            <span>⚡ {{ car.km }}</span>
+                        </div>
+                        <p class="location">📍 {{ car.location }}</p>
+                        <div class="actions">
+                            <button onclick="analyzeCar('{{ car.id }}')">AI Analiz</button>
+                            <a href="{{ car.url }}" target="_blank">İncele</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <section class="about-section" id="about">
+        <div class="container">
+            <h2>Neden AracımSağlam?</h2>
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-icon">🧠</div>
+                    <h3>Yapay Zeka Destekli</h3>
+                    <p>Klasik filtrelerle uğraşmayın. Ne istediğinizi söyleyin, AI size uygun araçları getirsin.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🛡️</div>
+                    <h3>Güvenli Altyapı</h3>
+                    <p>Tüm ilanlar ve satıcılar akıllı algoritmalarımız tarafından sürekli taranır ve doğrulanır.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">📈</div>
+                    <h3>Piyasa Analizi</h3>
+                    <p>Her araç için geçmiş fiyat verileri ve piyasa durumunu analiz ederek en doğru kararı vermenizi sağlar.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer id="contact">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>🚗 AracımSağlam</h3>
+                    <p style="color: var(--text-muted);">Geleceğin otomobil alım satım deneyimi.</p>
+                    <p class="copyright" style="border:none; padding:0; text-align:left;">© 2024 AracımSağlam</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Platform</h4>
+                    <ul>
+                        <li><a href="#vehicles">Araçlar</a></li>
+                        <li><a href="#ai-assistant">AI Asistan</a></li>
+                        <li><a href="#about">Hakkımızda</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>İletişim</h4>
+                    <p>📧 info@aracimsaglam.com</p>
+                    <p>📱 0850 123 45 67</p>
+                    <p>📍 Teknopark, İstanbul</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Teknoloji</h4>
+                    <ul>
+                        <li><a href="#">Python</a></li>
+                        <li><a href="#">Flask</a></li>
+                        <li><a href="#">Artificial Intelligence</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        async function searchCars() {
+            const query = document.getElementById('query-input').value;
+            if (!query) return;
+
+            const messagesDiv = document.getElementById('chat-messages');
+            messagesDiv.innerHTML += `<div class="message user">👤 ${query}</div>`;
+            messagesDiv.innerHTML += `<div class="message bot">🤖 Veriler analiz ediliyor, lütfen bekleyin...</div>`;
+            
+            // Auto scroll to bottom
+            const chatBox = document.querySelector('.chat-box');
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try {
+                const response = await fetch('/api/search', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({query})
+                });
+                const data = await response.json();
+                
+                const botMessages = messagesDiv.querySelectorAll('.message.bot');
+                const lastBotMessage = botMessages[botMessages.length - 1];
+                lastBotMessage.innerHTML = `🤖 ${data.response}`;
+                
+                chatBox.scrollTop = chatBox.scrollHeight;
+            } catch (error) {
+                console.error('Hata:', error);
+                const botMessages = messagesDiv.querySelectorAll('.message.bot');
+                const lastBotMessage = botMessages[botMessages.length - 1];
+                lastBotMessage.innerHTML = `🤖 Üzgünüm, bir bağlantı hatası oluştu.`;
+            }
+
+            document.getElementById('query-input').value = '';
+        }
+
+        async function analyzeCar(carId) {
+            const btn = event.target;
+            const originalText = btn.innerText;
+            btn.innerText = 'Analiz Ediliyor...';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch(`/api/analyze/${carId}`);
+                const data = await response.json();
+                alert('AI Analiz Raporu:\n\n' + data.analysis);
+            } catch (e) {
+                alert('Analiz sırasında bir hata oluştu');
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        document.getElementById('query-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') searchCars();
+        });
+
+        // Smooth scroll
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
+</body>
+</html>
