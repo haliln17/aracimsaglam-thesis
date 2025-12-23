@@ -25,6 +25,7 @@ from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 from car_agent import CarAgent
 import json
+from openai import OpenAI
 
 import re
 
@@ -39,6 +40,12 @@ CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # Initialize Agent
 agent = CarAgent()
+
+# Initialize OpenAI Client
+api_key = os.environ.get("OPENAI_API_KEY")
+client = None
+if api_key:
+    client = OpenAI(api_key=api_key)
 
 def load_cars():
     try:
@@ -215,29 +222,9 @@ def assistant():
 
         filtered_cars.append(car)
 
-    # Fallback if city filter was too strict and returned 0 results
-    # Only do this if we had a city filter
+    # Fallback removed strictly as per requirements: 
+    # if city is specified, DO NOT return cars from other cities
     hit_city_fallback = False
-    if not filtered_cars and criteria['cities']:
-        # Reset matching cars loop but ignore city
-        hit_city_fallback = True
-        for car in cars:
-            # Copy-paste checks minus city
-            c_brand = car.get('brand', '').lower()
-            c_fuel = car.get('fuel', '').lower()
-            c_trans = car.get('transmission', '').lower()
-            c_year = int(car.get('year', 0))
-            c_price = clean_price(car.get('price'))
-
-            if criteria['brands'] and not any(b == c_brand for b in criteria['brands']): continue
-            if criteria['fuels'] and not any(f in c_fuel for f in criteria['fuels']): continue
-            if criteria['transmissions'] and not any(t in c_trans for t in criteria['transmissions']): continue
-            if criteria['year_min'] and c_year < criteria['year_min']: continue
-            if criteria['year_max'] and c_year > criteria['year_max']: continue
-            if criteria['budget_max'] and c_price > criteria['budget_max']: continue
-            if criteria['budget_min'] and c_price < criteria['budget_min']: continue
-            
-            filtered_cars.append(car)
 
     # --- 3. Sorting/Ranking ---
     def get_sort_key(car):
@@ -263,10 +250,42 @@ def assistant():
     matches = filtered_cars[:6]
     
     # --- 4. Reply Generation ---
-    reply_parts = []
+    reply_text = ""
     
-    if hit_city_fallback:
-        reply_parts.append(f"⚠️ {', '.join(criteria['cities']).title()} içinde araç bulamadım, ancak diğer illerdeki benzer araçları getirdim.")
+    # Check if we have an OpenAI client and use it
+    if client:
+        try:
+            # Prepare context for OpenAI
+            if not matches:
+                system_prompt = "Sen Türkçe konuşan yardımsever bir otomobil asistanısın. Kullanıcıya kriterlerine uygun araç bulunamadığını nazikçe söyle ve kriterlerini (şehir, bütçe vb) değiştirmesini öner."
+                user_content = f"Kullanıcı mesajı: '{user_msg}'. Hiç araç bulunamadı."
+            else:
+                system_prompt = "Sen Türkçe konuşan yardımsever bir otomobil asistanısın. SANA VERİLEN ARAÇ LİSTESİ DIŞINDA ARAÇ UYDURMA. Sadece listedeki araçları kullanarak kısa, samimi ve satış odaklı bir özet cevap yaz. Neden bu araçların uygun olduğunu maddeleyerek anlat."
+                # Compact car list
+                car_context = []
+                for m in matches:
+                    car_context.append(f"- {m['title']} ({m['year']}), {m['price']}, {m['km']} km, {m['city']}, {m['fuel']}, {m['transmission']}")
+                
+                car_list_str = "\n".join(car_context)
+                user_content = f"Kullanıcı mesajı: '{user_msg}'.\n\nBulunan Araçlar:\n{car_list_str}\n\nLütfen bu araçları kullanıcıya sunan yardımsever bir cevap yaz."
+
+            completion = client.chat.completions.create(
+                model="gpt-4o", # or gpt-3.5-turbo
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_content}
+                ]
+            )
+            reply_text = completion.choices[0].message.content
+            return jsonify({'reply': reply_text, 'matches': matches})
+
+        except Exception as e:
+            print(f"OpenAI Error: {e}")
+            # Fallback will happen below
+            pass
+
+    # LOCAL FALLBACK
+    reply_parts = []
     
     if not matches:
         reply_parts.append("😔 Maalesef belirttiğiniz kriterlere uygun araç bulamadım.")
@@ -305,7 +324,39 @@ def analyze(car_id):
     if not car:
         return jsonify({'analysis': "Araç bulunamadı."})
         
-    # Heuristics for analysis
+    # OpenAI Analysis
+    if client:
+        try:
+            prompt = f"""
+            Şu araba hakkında potansiyel alıcıya detaylı bir analiz raporu yaz:
+            Araç: {car.get('title')}
+            Fiyat: {car.get('price')}
+            Yıl: {car.get('year')}
+            Km: {car.get('km')}
+            Şehir: {car.get('city')}
+            Yakıt: {car.get('fuel')}
+            Vites: {car.get('transmission')}
+
+            Lütfen şu formatta yanıt ver (Markdown):
+            ## 📊 {car.get('title')} Analiz Raporu
+            **Artılar** (5 madde)
+            **Eksiler** (5 madde)
+            **Bu araç kime uygun?**
+            **Fiyat/Kilometre Değerlendirmesi** (Sadece verilen veriye göre mantıklı bir yorum yap, uydurma)
+            
+            Türkçe, samimi ve profesyonel ol.
+            """
+            
+            completion = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            return jsonify({'analysis': completion.choices[0].message.content})
+        except Exception as e:
+            print(f"OpenAI Error in analyze: {e}")
+            pass
+
+    # Heuristics for analysis (FALLBACK)
     price = clean_price(car.get('price'))
     km = clean_km(car.get('km'))
     year = int(car.get('year', 0))
