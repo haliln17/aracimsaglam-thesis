@@ -13,6 +13,10 @@ pip-delete-this-directory.txt
 # Environment Variables
 .env
 
+cloudflared.exe
+*.lnk
+
+
 # IDE
 .vscode/
 .idea/
