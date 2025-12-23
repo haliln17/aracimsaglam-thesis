@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Asistan - AI Araba Galerisi</title>
     <link rel="stylesheet" href="static/style.css">
+    <style>
+        .bot-results { max-width: 100% !important; background: transparent !important; }
+        .bot-results .car-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        .bot-results .car-info h3 { font-size: 1.1rem; }
+    </style>
     <script src="config.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&display=swap" rel="stylesheet">
 </head>
@@ -54,10 +59,10 @@
             chatBox.scrollTop = chatBox.scrollHeight;
 
             try {
-                const response = await fetch('/api/search', {
+                const response = await fetch('/api/assistant', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({query})
+                    body: JSON.stringify({message: query})
                 });
                 const data = await response.json();
                 
@@ -65,7 +70,43 @@
                 const loadingMsg = messagesDiv.querySelector('.loading');
                 if (loadingMsg) loadingMsg.remove();
                 
-                messagesDiv.innerHTML += `<div class="message bot">🤖 ${data.response}</div>`;
+                // Render Text Reply
+                messagesDiv.innerHTML += `<div class="message bot">🤖 ${data.reply.replace(/\n/g, '<br>')}</div>`;
+                
+                // Render Cards if any
+                if (data.results && data.results.length > 0) {
+                    const resultsContainer = document.createElement('div');
+                    resultsContainer.className = 'message bot-results';
+                    resultsContainer.style.width = '100%';
+                    resultsContainer.style.background = 'transparent';
+                    resultsContainer.style.padding = '0';
+                    
+                    const grid = document.createElement('div');
+                    grid.className = 'cars-grid'; // Reuse existing grid class
+                    grid.style.marginTop = '10px';
+                    grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(280px, 1fr))';
+                    
+                    data.results.forEach(car => {
+                        const card = document.createElement('div');
+                        card.className = 'car-card';
+                        card.innerHTML = `
+                             <img src="${car.image}" alt="${car.title}" onerror="this.src='https://placehold.co/600x400/1e293b/FFF?text=Araba'">
+                            <div class="car-info">
+                                <h3>${car.title}</h3>
+                                <p class="price">${car.price}</p>
+                                <div class="details">
+                                    <span>📅 ${car.year}</span>
+                                    <span>⚡ ${car.km}</span>
+                                </div>
+                                <p class="location">📍 ${car.city || 'Konum Belirtilmemiş'}</p>
+                            </div>
+                        `;
+                        grid.appendChild(card);
+                    });
+                    
+                    resultsContainer.appendChild(grid);
+                    messagesDiv.appendChild(resultsContainer);
+                }
                 
                 chatBox.scrollTop = chatBox.scrollHeight;
             } catch (error) {
