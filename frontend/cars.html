@@ -63,10 +63,9 @@
                                 <span>📅 ${car.year}</span>
                                 <span>⚡ ${car.km}</span>
                             </div>
-                            <p class="location">📍 ${car.location}</p>
+                            <p class="location">📍 ${car.city || 'Konum Belirtilmemiş'}</p>
                             <div class="actions">
-                                <button onclick="analyzeCar('${car.id}')">AI Analiz</button>
-                                <a href="${car.url}" target="_blank">İncele</a>
+                                <button onclick="analyzeCar('${car.id}')" style="width: 100%;">AI Analiz</button>
                             </div>
                         </div>
                     `;
